@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MongoDB Explorer</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <canvas id="matrix-canvas"></canvas>
+
+  <div class="container">
+    <header>
+      <h1 class="glow">MongoDB Explorer</h1>
+      <p class="subtitle">Base de Datos: <span class="highlight">tup_tp</span></p>
+    </header>
+
+    <section class="collections-grid">
+      <h2>// Colecciones disponibles</h2>
+      <div class="cards-wrapper">
+        <% collections.forEach(col => { %>
+        <a href="/collections/<%= col.name %>" class="collection-card">
+          <div class="card-header">
+            <span class="bracket">{</span>
+          </div>
+          <div class="card-body">
+            <div class="field">
+              <span class="key">"collection"</span>: <span class="string">"<%= col.name %>"</span>
+            </div>
+            <div class="field">
+              <span class="key">"label"</span>: <span class="string">"<%= col.label %>"</span>
+            </div>
+            <div class="field">
+              <span class="key">"documentos"</span>: <span class="number"><%= col.count %></span>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span class="bracket">}</span>
+            <span class="action">→ VER DOCUMENTOS</span>
+          </div>
+        </a>
+        <% }) %>
+      </div>
+    </section>
+  </div>
+
+  <script src="/matrix.js"></script>
+</body>
+</html>

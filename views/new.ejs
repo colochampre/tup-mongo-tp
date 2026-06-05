@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MongoDB Explorer — Insert</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <canvas id="matrix-canvas"></canvas>
+
+  <div class="container">
+    <header>
+      <nav class="breadcrumbs">
+        <% breadcrumbs.forEach((crumb, index) => { %>
+          <% if (crumb.url) { %>
+            <a href="<%= crumb.url %>" class="crumb-link"><%= crumb.label %></a>
+          <% } else { %>
+            <span class="crumb-current"><%= crumb.label %></span>
+          <% } %>
+          <% if (index < breadcrumbs.length - 1) { %>
+            <span class="crumb-separator">/</span>
+          <% } %>
+        <% }) %>
+      </nav>
+      
+      <h1 class="glow"><%= queryText %></h1>
+    </header>
+
+    <div class="form-wrapper">
+      <form action="/collections/<%= title %>" method="POST" class="matrix-form">
+        <div class="bracket-large">{</div>
+        
+        <% if (title === 'courses') { %>
+          <div class="form-group">
+            <label><span class="jkey">"nombre"</span>: </label>
+            <input type="text" name="nombre" class="jstr" required placeholder='"Ingrese nombre..."' />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"carrera"</span>: </label>
+            <input type="text" name="carrera" class="jstr" required placeholder='"Ingrese carrera..."' />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"cargaHoraria"</span>: </label>
+            <input type="number" name="cargaHoraria" class="jnum" required placeholder="0" />
+          </div>
+        <% } else if (title === 'students') { %>
+          <div class="form-group">
+            <label><span class="jkey">"legajo"</span>: </label>
+            <input type="text" name="legajo" class="jstr" required placeholder='"Ingrese legajo..."' />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"nombre"</span>: </label>
+            <input type="text" name="nombre" class="jstr" required placeholder='"Ingrese nombre..."' />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"email"</span>: </label>
+            <input type="email" name="email" class="jstr" placeholder='"correo@..."' />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"fechaInscripcion"</span>: </label>
+            <input type="date" name="fechaInscripcion" class="jstr" />
+          </div>
+        <% } %>
+
+        <div class="bracket-large">}</div>
+        
+        <div class="form-actions">
+          <button type="submit" class="btn-execute">> EJECUTAR</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/matrix.js"></script>
+</body>
+</html>
