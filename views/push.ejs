@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MongoDB Explorer — $push</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/mongodb-leaf.svg" />
+</head>
+<body>
+  <canvas id="matrix-canvas"></canvas>
+
+  <div class="container">
+    <header>
+      <nav class="breadcrumbs">
+        <% breadcrumbs.forEach((crumb, index) => { %>
+          <% if (crumb.url) { %>
+            <a href="<%= crumb.url %>" class="crumb-link"><%= crumb.label %></a>
+          <% } else { %>
+            <span class="crumb-current"><%= crumb.label %></span>
+          <% } %>
+          <% if (index < breadcrumbs.length - 1) { %>
+            <span class="crumb-separator">/</span>
+          <% } %>
+        <% }) %>
+      </nav>
+
+      <h1 class="glow"><%= queryText %></h1>
+      <p class="subtitle">Alumno: <span class="highlight"><%= student.nombre %></span> (legajo <%= student.legajo %>)</p>
+
+      <% if (error) { %>
+        <div class="flash flash-error"><%= error %></div>
+      <% } %>
+    </header>
+
+    <div class="form-wrapper">
+      <form action="/collections/students/<%= student._id %>/push" method="POST" class="matrix-form">
+        <div class="bracket-large">{</div>
+        <div class="form-group">
+          <label><span class="jkey">"$push.materiasCursadas.materia"</span>:</label>
+          <select name="materia" class="jselect" required>
+            <option value="">-- seleccionar curso --</option>
+            <% courses.forEach(c => { %>
+              <option value="<%= c._id %>"><%= c.nombre %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-group">
+          <label><span class="jkey">"notaFinal"</span>:</label>
+          <input type="number" name="notaFinal" class="jnum" min="0" max="10" required placeholder="0" />
+        </div>
+        <div class="form-group">
+          <label><span class="jkey">"estado"</span>:</label>
+          <select name="estado" class="jselect" required>
+            <option value="Aprobada">Aprobada</option>
+            <option value="Regular">Regular</option>
+            <option value="Libre">Libre</option>
+          </select>
+        </div>
+        <div class="bracket-large">}</div>
+        <div class="form-actions">
+          <button type="submit" class="btn-execute">> EJECUTAR $push</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/matrix.js"></script>
+</body>
+</html>

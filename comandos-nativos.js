@@ -10,7 +10,7 @@
 
 // 1. SELECCIÓN DE BASE DE DATOS
 // La crea automáticamente si no existe.
-use('tup_tp');
+use('tup_mongo_tp');
 
 // 2. LIMPIEZA DEL ENTORNO
 // Aseguramos que el script sea repetible eliminando las colecciones previas.

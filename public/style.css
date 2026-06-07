@@ -345,15 +345,16 @@ h2 {
   align-items: flex-start;
 }
 
-.card-header > div {
+.card-header .card-title {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
 }
 
 .btn-delete {
+  padding: 0.2rem 0.25rem;
   background: transparent;
-  border: none;
+  border: 1px solid #ff4757;
   color: #ff4757;
   font-family: inherit;
   font-size: 0.8rem;
@@ -439,4 +440,129 @@ h2 {
   background: var(--green);
   color: var(--black);
   box-shadow: 0 0 15px var(--green);
+}
+
+.btn-update {
+  display: inline-block;
+  color: #74b9ff;
+  background: transparent;
+  border: 1px solid #74b9ff;
+  padding: 0.2rem 0.25rem;
+  border-radius: 3px;
+  text-decoration: none;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.btn-update:hover {
+  color: #fff;
+  box-shadow: 0 0 10px rgba(116, 185, 255, 0.4);
+}
+
+.doc-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* =============================================
+   FLASH MESSAGES
+   ============================================= */
+.flash {
+  max-width: 600px;
+  margin: 0 auto 1.5rem;
+  padding: 0.8rem 1.2rem;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.flash-success {
+  border: 1px solid var(--green);
+  background: rgba(0, 255, 65, 0.08);
+  color: var(--green);
+}
+
+.flash-error {
+  border: 1px solid #ff4757;
+  background: rgba(255, 71, 87, 0.08);
+  color: #ff6b81;
+}
+
+/* =============================================
+   CREATE COLLECTION (Index)
+   ============================================= */
+.create-collection {
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--green-dark);
+}
+
+.create-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+  justify-content: flex-start;
+  margin-top: 1rem;
+}
+
+.create-form .form-group.inline {
+  margin: 0;
+  margin-left: 0;
+}
+
+.create-form input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed var(--green-dim);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.2rem;
+  width: 200px;
+  outline: none;
+}
+
+/* =============================================
+   JSON TEXTAREA & SELECTS
+   ============================================= */
+.json-textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px dashed var(--green-dim);
+  color: #a8ffba;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 1rem;
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.json-textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 10px var(--green-glow);
+}
+
+.json-group {
+  margin-left: 0 !important;
+  flex-direction: column;
+  align-items: stretch !important;
+  width: 100%;
+}
+
+.jselect {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px dashed var(--green-dim);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.3rem 0.5rem;
+  width: 250px;
+  outline: none;
+}
+
+.jselect:focus {
+  border-color: var(--green);
 }

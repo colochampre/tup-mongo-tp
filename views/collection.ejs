@@ -1,61 +1,85 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MongoDB Explorer — <%= title %></title>
+  <title>MongoDB Explorer — <%= title %>
+  </title>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/mongodb-leaf.svg" />
 </head>
+
 <body>
   <canvas id="matrix-canvas"></canvas>
 
   <div class="container">
     <header>
       <nav class="breadcrumbs">
-        <% breadcrumbs.forEach((crumb, index) => { %>
+        <% breadcrumbs.forEach((crumb, index)=> { %>
           <% if (crumb.url) { %>
-            <a href="<%= crumb.url %>" class="crumb-link"><%= crumb.label %></a>
-          <% } else { %>
-            <span class="crumb-current"><%= crumb.label %></span>
-          <% } %>
-          <% if (index < breadcrumbs.length - 1) { %>
-            <span class="crumb-separator">/</span>
-          <% } %>
-        <% }) %>
+            <a href="<%= crumb.url %>" class="crumb-link">
+              <%= crumb.label %>
+            </a>
+            <% } else { %>
+              <span class="crumb-current">
+                <%= crumb.label %>
+              </span>
+              <% } %>
+                <% if (index < breadcrumbs.length - 1) { %>
+                  <span class="crumb-separator">/</span>
+                  <% } %>
+                    <% }) %>
       </nav>
-      
-      <h1 class="glow"><%= queryText %></h1>
-      <p class="subtitle"><span class="number"><%= docs.length %></span> documentos encontrados</p>
-      
-      <!-- Botón Global para Crear Nuevo Documento -->
-      <div class="actions-bar">
-        <a href="/collections/<%= title %>/new" class="btn-insert">[ db.<%= title %>.insertOne() ]</a>
-      </div>
+
+      <h1 class="glow">> <%= queryText %>
+      </h1>
+      <p class="subtitle"><span class="number">
+          <%= docs.length %>
+        </span> documentos encontrados</p>
+
+      <% if (flash) { %>
+        <div class="flash flash-success">
+          <%= flash %>
+        </div>
+        <% } %>
+
+          <div class="actions-bar">
+            <a href="/collections/<%= title %>/new" class="btn-insert">[ db.<%= title %>.insertOne() ]</a>
+          </div>
     </header>
 
     <section class="documents-grid">
-      <% docs.forEach(doc => { %>
-      <div class="doc-card">
-        <div class="card-header">
-          <div>
-            <span class="doc-title"><%= doc.nombre || doc.name || doc._id %></span>
-            <span class="doc-id">_id: <%= doc._id %></span>
+      <% docs.forEach(doc=> { %>
+        <div class="doc-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="doc-title">
+                <%= doc.nombre || doc.name || doc._id %>
+              </span>
+              <span class="doc-id">_id: <%= doc._id %></span>
+            </div>
+            <div class="doc-actions">
+              <% if (title==='students' ) { %>
+                <a href="/collections/students/<%= doc._id %>/push" class="btn-update">[ $push ]</a>
+                <% } else if (title==='courses' ) { %>
+                  <a href="/collections/courses/<%= doc._id %>/edit" class="btn-update">[ updateOne ]</a>
+                  <% } else if (typeof isGeneric !=='undefined' && isGeneric) { %>
+                    <a href="/collections/<%= title %>/<%= doc._id %>/edit" class="btn-update">[ updateOne ]</a>
+                    <% } %>
+                      <form action="/collections/<%= title %>/<%= doc._id %>/delete" method="POST"
+                        onsubmit="return confirm('¿Ejecutar db.<%= title %>.deleteOne({ _id: ObjectId(\'<%= doc._id %>\') })?');">
+                        <button type="submit" class="btn-delete">[ x ]</button>
+                      </form>
+            </div>
           </div>
-          <!-- Formulario Oculto para Eliminar con prompt nativo -->
-          <form 
-            action="/collections/<%= title %>/<%= doc._id %>/delete" 
-            method="POST" 
-            onsubmit="return confirm('¿Ejecutar db.<%= title %>.deleteOne({ _id: ObjectId(\'<%= doc._id %>\') })?');"
-          >
-            <button type="submit" class="btn-delete">[ x ]</button>
-          </form>
+          <pre class="json-body"><%- doc._html %></pre>
         </div>
-        <pre class="json-body"><%- doc._html %></pre>
-      </div>
-      <% }) %>
+        <% }) %>
     </section>
   </div>
 
   <script src="/matrix.js"></script>
 </body>
+
 </html>

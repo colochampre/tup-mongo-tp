@@ -5,9 +5,14 @@ import { dirname, join } from 'path';
 import Course from './models/Course.js';
 import Student from './models/Student.js';
 import { toHtmlJson } from './helpers.js';
+import {
+  isModeled,
+  getNativeCollection,
+  isValidCollectionName,
+  listAllCollections,
+  parseObjectId
+} from './collectionRegistry.js';
 
-// Esquema de links: define qué campos son referencias a otras colecciones
-// Equivale a declarar las Foreign Keys de un modelo relacional
 const STUDENT_LINK_SCHEMA = {
   _currentCollection: 'students',
   'materiasCursadas[].materia': { collection: 'courses', labelKey: 'nombre' }
@@ -22,10 +27,10 @@ const PORT = 3000;
 app.set('view engine', 'ejs');
 app.set('views', join(__dirname, 'views'));
 app.use(express.static(join(__dirname, 'public')));
-app.use(express.urlencoded({ extended: true })); // Para parsear application/x-www-form-urlencoded
+app.use(express.urlencoded({ extended: true }));
 
 // ==========================================
-// SEED: Poblar la BD si está vacía
+// SEED
 // ==========================================
 async function seedDatabase() {
   const courseCount = await Course.countDocuments();
@@ -136,91 +141,108 @@ async function seedDatabase() {
 }
 
 // ==========================================
-// HELPERS DE RUTAS
+// HELPERS
 // ==========================================
 function getBreadcrumbs(req, collection, currentDocLabel = null) {
   const breadcrumbs = [{ label: 'collections', url: '/' }];
-  
+
   if (req.query.from) {
     breadcrumbs.push({ label: req.query.from, url: `/collections/${req.query.from}` });
   }
-  
-  // Agregar la colección actual
+
   if (!req.params.id && !req.query.from) {
     breadcrumbs.push({ label: collection, url: `/collections/${collection}` });
   } else {
     breadcrumbs.push({ label: collection, url: `/collections/${collection}` });
     if (req.params.id) {
-      breadcrumbs.push({ label: currentDocLabel || req.params.id.slice(-6), url: null }); 
+      breadcrumbs.push({ label: currentDocLabel || req.params.id.slice(-6), url: null });
     }
   }
-  
+
   return breadcrumbs;
 }
 
-// ------------------------------------------
-// RUTAS GET: VISTAS (Read)
-// ------------------------------------------
+function renderCollection(res, opts) {
+  res.render('collection', {
+    isGeneric: false,
+    flash: null,
+    ...opts
+  });
+}
 
-// Vista principal: lista las colecciones disponibles
+function docsWithHtml(docs, linkSchema = {}) {
+  return docs.map(doc => ({ ...doc, _html: toHtmlJson(doc, linkSchema) }));
+}
+
+// ==========================================
+// INDEX + CREATE COLLECTION
+// ==========================================
 app.get('/', async (req, res) => {
-  const collections = [
-    { name: 'courses', label: 'Cursos', count: await Course.countDocuments() },
-    { name: 'students', label: 'Alumnos', count: await Student.countDocuments() }
-  ];
-  res.render('index', { collections });
-});
-
-// Vista de la colección de Cursos
-app.get('/collections/courses', async (req, res) => {
-  const docs = await Course.find().lean();
-  const docsWithHtml = docs.map(doc => ({ ...doc, _html: toHtmlJson(doc) }));
-  
-  res.render('collection', { 
-    title: 'courses', 
-    queryText: 'db.courses.find({})',
-    breadcrumbs: getBreadcrumbs(req, 'courses'),
-    docs: docsWithHtml 
+  const collections = await listAllCollections();
+  res.render('index', {
+    collections,
+    error: req.query.error || null,
+    success: req.query.success || null
   });
 });
 
-// Vista de la colección de Alumnos (con populate para ver las materias resueltas)
-app.get('/collections/students', async (req, res) => {
-  const docs = await Student.find().populate('materiasCursadas.materia').lean();
-  const docsWithHtml = docs.map(doc => ({ ...doc, _html: toHtmlJson(doc, STUDENT_LINK_SCHEMA) }));
-  
-  res.render('collection', { 
-    title: 'students', 
-    queryText: 'db.students.find({})', // Pura sintaxis nativa
-    breadcrumbs: getBreadcrumbs(req, 'students'),
-    docs: docsWithHtml 
-  });
+app.post('/collections', async (req, res) => {
+  const name = (req.body.name || '').trim();
+
+  if (!isValidCollectionName(name)) {
+    return res.redirect('/?error=Nombre+inv%C3%A1lido.+Us%C3%A1+letras,+n%C3%BAmeros+y+_');
+  }
+
+  const existing = await mongoose.connection.db.listCollections({ name }).toArray();
+  if (existing.length > 0) {
+    return res.redirect('/?error=La+colecci%C3%B3n+ya+existe');
+  }
+
+  await mongoose.connection.db.createCollection(name);
+  res.redirect(`/?success=Colecci%C3%B3n+${encodeURIComponent(name)}+creada`);
+});
+
+app.post('/collections/:name/delete', async (req, res) => {
+  const { name } = req.params;
+  if (isModeled(name)) {
+    return res.redirect('/?error=No+se+puede+eliminar+una+colecci%C3%B3n+del+sistema');
+  }
+  if (!isValidCollectionName(name)) {
+    return res.redirect('/?error=Nombre+de+colecci%C3%B3n+inv%C3%A1lido');
+  }
+  try {
+    await mongoose.connection.db.dropCollection(name);
+    res.redirect(`/?success=Colecci%C3%B3n+${encodeURIComponent(name)}+eliminada`);
+  } catch {
+    res.redirect('/?error=Error+al+eliminar+la+colecci%C3%B3n');
+  }
 });
 
 // ==========================================
-// RUTAS POST Y GET DE FORMULARIOS (Create, Delete)
-// Estas rutas estáticas deben ir ANTES de las rutas con :id
+// FORM ROUTES (before :id)
 // ==========================================
-
-// Renderizar formulario de creación de Curso
 app.get('/collections/courses/new', (req, res) => {
-  res.render('new', { 
-    title: 'courses', 
+  res.render('new', {
+    title: 'courses',
+    isGeneric: false,
     queryText: 'db.courses.insertOne(...)',
-    breadcrumbs: getBreadcrumbs(req, 'courses', 'new()')
+    breadcrumbs: getBreadcrumbs(req, 'courses', 'new()'),
+    error: null,
+    jsonValue: ''
   });
 });
 
-// Renderizar formulario de creación de Alumno
 app.get('/collections/students/new', (req, res) => {
-  res.render('new', { 
-    title: 'students', 
+  res.render('new', {
+    title: 'students',
+    isGeneric: false,
     queryText: 'db.students.insertOne(...)',
-    breadcrumbs: getBreadcrumbs(req, 'students', 'new()')
+    breadcrumbs: getBreadcrumbs(req, 'students', 'new()'),
+    error: null,
+    jsonValue: ''
   });
 });
 
-// Procesar creación de Curso
 app.post('/collections/courses', async (req, res) => {
   await Course.create({
     nombre: req.body.nombre,
@@ -230,69 +252,301 @@ app.post('/collections/courses', async (req, res) => {
   res.redirect('/collections/courses');
 });
 
-// Procesar creación de Alumno
 app.post('/collections/students', async (req, res) => {
   await Student.create({
     nombre: req.body.nombre,
     legajo: req.body.legajo,
     email: req.body.email,
     fechaInscripcion: req.body.fechaInscripcion ? new Date(req.body.fechaInscripcion) : new Date(),
-    materiasCursadas: [] // Lo dejamos vacío por simplicidad del form
+    materiasCursadas: []
   });
   res.redirect('/collections/students');
 });
 
-// Eliminar Curso
+// ==========================================
+// STUDENTS: $push
+// ==========================================
+app.get('/collections/students/:id/push', async (req, res) => {
+  const student = await Student.findById(req.params.id).lean();
+  if (!student) return res.status(404).send('Alumno no encontrado');
+
+  const courses = await Course.find().lean();
+  res.render('push', {
+    title: 'students',
+    student,
+    courses,
+    queryText: `db.students.updateOne({ _id: ObjectId("${req.params.id}") }, { $push: { materiasCursadas: {...} } })`,
+    breadcrumbs: getBreadcrumbs(req, 'students', `$push → ${student.nombre}`),
+    error: null
+  });
+});
+
+app.post('/collections/students/:id/push', async (req, res) => {
+  const { materia, notaFinal, estado } = req.body;
+  if (!materia || !notaFinal || !estado) {
+    const student = await Student.findById(req.params.id).lean();
+    const courses = await Course.find().lean();
+    return res.render('push', {
+      title: 'students',
+      student,
+      courses,
+      queryText: `db.students.updateOne({ _id: ObjectId("${req.params.id}") }, { $push: { materiasCursadas: {...} } })`,
+      breadcrumbs: getBreadcrumbs(req, 'students', `$push → ${student?.nombre || req.params.id}`),
+      error: 'Completá todos los campos'
+    });
+  }
+
+  await Student.updateOne(
+    { _id: req.params.id },
+    {
+      $push: {
+        materiasCursadas: {
+          materia,
+          notaFinal: Number(notaFinal),
+          estado
+        }
+      }
+    }
+  );
+  res.redirect(`/collections/students/${req.params.id}?updated=push`);
+});
+
+// ==========================================
+// COURSES: updateOne
+// ==========================================
+app.get('/collections/courses/:id/edit', async (req, res) => {
+  const doc = await Course.findById(req.params.id).lean();
+  if (!doc) return res.status(404).send('Documento no encontrado');
+
+  res.render('edit', {
+    title: 'courses',
+    isGeneric: false,
+    doc,
+    queryText: `db.courses.updateOne({ _id: ObjectId("${req.params.id}") }, { $set: {...} })`,
+    breadcrumbs: getBreadcrumbs(req, 'courses', `edit → ${doc.nombre}`),
+    error: null,
+    jsonValue: ''
+  });
+});
+
+app.post('/collections/courses/:id/edit', async (req, res) => {
+  await Course.findByIdAndUpdate(req.params.id, {
+    nombre: req.body.nombre,
+    carrera: req.body.carrera,
+    cargaHoraria: Number(req.body.cargaHoraria)
+  });
+  res.redirect(`/collections/courses/${req.params.id}?updated=edit`);
+});
+
+// ==========================================
+// MODELED COLLECTIONS: find + delete + findOne
+// ==========================================
+app.get('/collections/courses', async (req, res) => {
+  const docs = await Course.find().lean();
+  renderCollection(res, {
+    title: 'courses',
+    queryText: 'db.courses.find({})',
+    breadcrumbs: getBreadcrumbs(req, 'courses'),
+    docs: docsWithHtml(docs),
+    flash: req.query.updated === 'edit' ? 'Documento actualizado con updateOne' : null
+  });
+});
+
+app.get('/collections/students', async (req, res) => {
+  const docs = await Student.find().populate('materiasCursadas.materia').lean();
+  renderCollection(res, {
+    title: 'students',
+    queryText: 'db.students.find({})',
+    breadcrumbs: getBreadcrumbs(req, 'students'),
+    docs: docsWithHtml(docs, STUDENT_LINK_SCHEMA),
+    flash: null
+  });
+});
+
 app.post('/collections/courses/:id/delete', async (req, res) => {
   await Course.findByIdAndDelete(req.params.id);
+  await Student.updateMany(
+    { 'materiasCursadas.materia': req.params.id },
+    { $pull: { materiasCursadas: { materia: req.params.id } } }
+  );
   res.redirect('/collections/courses');
 });
 
-// Eliminar Alumno
 app.post('/collections/students/:id/delete', async (req, res) => {
   await Student.findByIdAndDelete(req.params.id);
   res.redirect('/collections/students');
 });
 
-// ------------------------------------------
-// RUTAS GET: VISTAS CON ID DINÁMICO (Read)
-// ------------------------------------------
-
-// Vista de un único documento de Curso por ID
 app.get('/collections/courses/:id', async (req, res) => {
   const doc = await Course.findById(req.params.id).lean();
   if (!doc) return res.status(404).send('Documento no encontrado');
-  
-  const docWithHtml = { ...doc, _html: toHtmlJson(doc) };
-  res.render('collection', { 
-    title: 'courses', 
+
+  renderCollection(res, {
+    title: 'courses',
     queryText: `db.courses.findOne({ _id: ObjectId("${req.params.id}") })`,
-    breadcrumbs: getBreadcrumbs(req, 'courses', doc.nombre), // Pasamos el nombre
-    docs: [docWithHtml]
+    breadcrumbs: getBreadcrumbs(req, 'courses', doc.nombre),
+    docs: docsWithHtml([doc]),
+    flash: req.query.updated === 'edit' ? 'Documento actualizado con updateOne' : null
   });
 });
 
-// Vista de un único documento de Alumno por ID
 app.get('/collections/students/:id', async (req, res) => {
   const doc = await Student.findById(req.params.id).populate('materiasCursadas.materia').lean();
   if (!doc) return res.status(404).send('Documento no encontrado');
-  
-  const docWithHtml = { ...doc, _html: toHtmlJson(doc, STUDENT_LINK_SCHEMA) };
-  res.render('collection', { 
-    title: 'students', 
-    queryText: `db.students.findOne({ _id: ObjectId("${req.params.id}") })`, // Removido el .populate()
-    breadcrumbs: getBreadcrumbs(req, 'students', doc.nombre), // Pasamos el nombre
-    docs: [docWithHtml]
+
+  renderCollection(res, {
+    title: 'students',
+    queryText: `db.students.findOne({ _id: ObjectId("${req.params.id}") })`,
+    breadcrumbs: getBreadcrumbs(req, 'students', doc.nombre),
+    docs: docsWithHtml([doc], STUDENT_LINK_SCHEMA),
+    flash: req.query.updated === 'push' ? 'Materia agregada con $push' : null
   });
 });
 
 // ==========================================
-// ARRANQUE DEL SERVIDOR
+// GENERIC COLLECTIONS (after static routes)
+// ==========================================
+app.get('/collections/:name', async (req, res) => {
+  const { name } = req.params;
+  const col = getNativeCollection(name);
+  const exists = await mongoose.connection.db.listCollections({ name }).toArray();
+  if (exists.length === 0) return res.status(404).send('Colección no encontrada');
+
+  const docs = await col.find({}).toArray();
+  renderCollection(res, {
+    title: name,
+    isGeneric: true,
+    queryText: `db.${name}.find({})`,
+    breadcrumbs: getBreadcrumbs(req, name),
+    docs: docsWithHtml(docs),
+    flash: req.query.updated ? 'Documento actualizado' : null
+  });
+});
+
+app.get('/collections/:name/new', async (req, res) => {
+  const { name } = req.params;
+  if (isModeled(name)) return res.redirect(`/collections/${name}/new`);
+
+  res.render('new', {
+    title: name,
+    isGeneric: true,
+    queryText: `db.${name}.insertOne(...)`,
+    breadcrumbs: getBreadcrumbs(req, name, 'new()'),
+    error: null,
+    jsonValue: '{\n  \n}'
+  });
+});
+
+app.post('/collections/:name', async (req, res) => {
+  const { name } = req.params;
+  if (isModeled(name)) return res.redirect(`/collections/${name}`);
+
+  let doc;
+  try {
+    doc = JSON.parse(req.body.json);
+  } catch {
+    return res.render('new', {
+      title: name,
+      isGeneric: true,
+      queryText: `db.${name}.insertOne(...)`,
+      breadcrumbs: getBreadcrumbs(req, name, 'new()'),
+      error: 'JSON inválido. Revisá la sintaxis.',
+      jsonValue: req.body.json
+    });
+  }
+
+  await getNativeCollection(name).insertOne(doc);
+  res.redirect(`/collections/${name}`);
+});
+
+app.get('/collections/:name/:id/edit', async (req, res) => {
+  const { name, id } = req.params;
+  if (isModeled(name)) return res.status(404).send('Usá la ruta de edición del modelo');
+
+  const objectId = parseObjectId(id);
+  if (!objectId) return res.status(400).send('ID inválido');
+
+  const doc = await getNativeCollection(name).findOne({ _id: objectId });
+  if (!doc) return res.status(404).send('Documento no encontrado');
+
+  const { _id, ...rest } = doc;
+  res.render('edit', {
+    title: name,
+    isGeneric: true,
+    doc,
+    queryText: `db.${name}.replaceOne({ _id: ObjectId("${id}") }, {...})`,
+    breadcrumbs: getBreadcrumbs(req, name, `edit → ${id.slice(-6)}`),
+    error: null,
+    jsonValue: JSON.stringify(rest, null, 2)
+  });
+});
+
+app.post('/collections/:name/:id', async (req, res) => {
+  const { name, id } = req.params;
+  if (isModeled(name)) return res.status(404).send('Usá la ruta de edición del modelo');
+
+  const objectId = parseObjectId(id);
+  if (!objectId) return res.status(400).send('ID inválido');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(req.body.json);
+  } catch {
+    const doc = await getNativeCollection(name).findOne({ _id: objectId });
+    return res.render('edit', {
+      title: name,
+      isGeneric: true,
+      doc,
+      queryText: `db.${name}.replaceOne({ _id: ObjectId("${id}") }, {...})`,
+      breadcrumbs: getBreadcrumbs(req, name, `edit → ${id.slice(-6)}`),
+      error: 'JSON inválido. Revisá la sintaxis.',
+      jsonValue: req.body.json
+    });
+  }
+
+  const replacement = { ...parsed, _id: objectId };
+  await getNativeCollection(name).replaceOne({ _id: objectId }, replacement);
+  res.redirect(`/collections/${name}/${id}?updated=1`);
+});
+
+app.post('/collections/:name/:id/delete', async (req, res) => {
+  const { name, id } = req.params;
+  if (isModeled(name)) return res.status(404).send('Usá la ruta de eliminación del modelo');
+
+  const objectId = parseObjectId(id);
+  if (!objectId) return res.status(400).send('ID inválido');
+
+  await getNativeCollection(name).deleteOne({ _id: objectId });
+  res.redirect(`/collections/${name}`);
+});
+
+app.get('/collections/:name/:id', async (req, res) => {
+  const { name, id } = req.params;
+  if (isModeled(name)) return res.redirect(`/collections/${name}/${id}`);
+
+  const objectId = parseObjectId(id);
+  if (!objectId) return res.status(400).send('ID inválido');
+
+  const doc = await getNativeCollection(name).findOne({ _id: objectId });
+  if (!doc) return res.status(404).send('Documento no encontrado');
+
+  renderCollection(res, {
+    title: name,
+    isGeneric: true,
+    queryText: `db.${name}.findOne({ _id: ObjectId("${id}") })`,
+    breadcrumbs: getBreadcrumbs(req, name, id.slice(-6)),
+    docs: docsWithHtml([doc]),
+    flash: req.query.updated ? 'Documento actualizado' : null
+  });
+});
+
+// ==========================================
+// START
 // ==========================================
 async function start() {
   try {
     console.log('⏳ Conectando a MongoDB...');
-    await mongoose.connect('mongodb://127.0.0.1:27017/tup_tp');
+    await mongoose.connect('mongodb://127.0.0.1:27017/tup_mongo_tp');
     console.log('✅ Conexión exitosa a MongoDB.');
 
     await seedDatabase();

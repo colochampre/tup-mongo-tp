@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MongoDB Explorer — Update</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" type="image/svg+xml" href="/mongodb-leaf.svg" />
+</head>
+<body>
+  <canvas id="matrix-canvas"></canvas>
+
+  <div class="container">
+    <header>
+      <nav class="breadcrumbs">
+        <% breadcrumbs.forEach((crumb, index) => { %>
+          <% if (crumb.url) { %>
+            <a href="<%= crumb.url %>" class="crumb-link"><%= crumb.label %></a>
+          <% } else { %>
+            <span class="crumb-current"><%= crumb.label %></span>
+          <% } %>
+          <% if (index < breadcrumbs.length - 1) { %>
+            <span class="crumb-separator">/</span>
+          <% } %>
+        <% }) %>
+      </nav>
+
+      <h1 class="glow"><%= queryText %></h1>
+
+      <% if (error) { %>
+        <div class="flash flash-error"><%= error %></div>
+      <% } %>
+    </header>
+
+    <div class="form-wrapper">
+      <% if (isGeneric) { %>
+        <form action="/collections/<%= title %>/<%= doc._id %>" method="POST" class="matrix-form">
+          <div class="bracket-large">{</div>
+          <div class="form-group json-group">
+            <textarea name="json" class="json-textarea" rows="14" required><%= jsonValue %></textarea>
+          </div>
+          <div class="bracket-large">}</div>
+          <div class="form-actions">
+            <button type="submit" class="btn-execute">> EJECUTAR replaceOne</button>
+          </div>
+        </form>
+      <% } else { %>
+        <form action="/collections/courses/<%= doc._id %>/edit" method="POST" class="matrix-form">
+          <div class="bracket-large">{</div>
+          <div class="form-group">
+            <label><span class="jkey">"nombre"</span>:</label>
+            <input type="text" name="nombre" class="jstr" required value="<%= doc.nombre %>" />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"carrera"</span>:</label>
+            <input type="text" name="carrera" class="jstr" required value="<%= doc.carrera %>" />
+          </div>
+          <div class="form-group">
+            <label><span class="jkey">"cargaHoraria"</span>:</label>
+            <input type="number" name="cargaHoraria" class="jnum" required value="<%= doc.cargaHoraria %>" />
+          </div>
+          <div class="bracket-large">}</div>
+          <div class="form-actions">
+            <button type="submit" class="btn-execute">> EJECUTAR updateOne</button>
+          </div>
+        </form>
+      <% } %>
+    </div>
+  </div>
+
+  <script src="/matrix.js"></script>
+</body>
+</html>

@@ -43,7 +43,7 @@ async function runExample() {
     // 2.1 Conexión a la base de datos local
     // (Asegurate de tener MongoDB corriendo en tu PC o usa una URL de MongoDB Atlas)
     console.log('⏳ Conectando a MongoDB...');
-    await mongoose.connect('mongodb://127.0.0.1:27017/tup_tp');
+    await mongoose.connect('mongodb://127.0.0.1:27017/tup_mongo_tp');
     console.log('✅ Conexión exitosa a MongoDB.\n');
 
     // Limpiar la base de datos para que el script se pueda correr múltiples veces limpiamente
